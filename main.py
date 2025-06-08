@@ -4,65 +4,74 @@ import random
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, ContextTypes
 
-# Enable logging
+# Logging
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     level=logging.INFO
 )
 logger = logging.getLogger(__name__)
 
-# Configs
+# Constants
 TOKEN = os.getenv("BOT_TOKEN")
 REF_LINK = "https://87lottery.club/r/olspqa"
 GROUP_LINK = "https://t.me/AviatorPredictorClubHack"
 
-# In-memory user tracking
-users = set()
+# Track users
+user_data = set()
 
+# Generate prediction
 def generate_prediction():
-    crash = round(random.uniform(1.40, 3.00), 2)
-    exit_point = round(crash - 0.10, 2)
-    return f"""🎯 Predicted Crash Point: <b>{crash}x</b>
-✅ Suggested Entry: <b>1.00x</b> → Exit at <b>{exit_point}x</b>
+    crash = round(random.uniform(1.42, 2.98), 2)
+    safe_exit = round(crash - 0.08, 2)
+    return f"""🎯 <b>Predicted Crash Point:</b> <code>{crash}x</code>
+✅ <b>Recommended Cash Out:</b> <code>{safe_exit}x</code>
+⚠️ Use instantly! Prediction expires in seconds."""
 
-📊 Prediction generated using last 10 crash averages.
-💡 Tip: Play safe, exit early!
-"""
-
+# /start command
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user = update.effective_user
-    users.add(user.id)
-    logger.info(f"User started: {user.first_name} ({user.id})")
+    user_id = update.effective_user.id
+    user_data.add(user_id)
+    logger.info(f"User started: {user_id}")
 
     keyboard = [
+        [InlineKeyboardButton("🎯 Get Prediction", callback_data='predict')],
         [InlineKeyboardButton("🎮 Play Aviator", url=REF_LINK)],
-        [InlineKeyboardButton("📈 Get Prediction", callback_data="predict")],
-        [InlineKeyboardButton("💬 Join Telegram Group", url=GROUP_LINK)]
+        [InlineKeyboardButton("🚀 Join Prediction Group", url=GROUP_LINK)],
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
     await update.message.reply_text(
-        f"👋 Welcome {user.first_name}!\n\n"
-        "I will help you predict Aviator crash points.\n"
-        "Choose an option below 👇",
+        f"👋 Welcome {update.effective_user.first_name}!\n\n"
+        f"🎰 This bot gives you FREE Aviator Game predictions with high accuracy!\n\n"
+        f"👇 Use the buttons below to begin:",
         reply_markup=reply_markup
     )
 
-async def handle_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
+# Prediction Button Handler
+async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
-    if query.data == "predict":
+    if query.data == 'predict':
         prediction = generate_prediction()
-        await query.edit_message_text(prediction, parse_mode="HTML")
+        await query.edit_message_text(prediction, parse_mode='HTML')
 
+# /stats command
 async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    total_users = len(users)
+    total_users = len(user_data)
     await update.message.reply_text(f"📊 Total Users: {total_users}")
 
-if __name__ == "__main__":
+# Run bot
+if __name__ == '__main__':
+    if not TOKEN:
+        print("⚠️ BOT_TOKEN is not set!")
+        exit()
+
     app = ApplicationBuilder().token(TOKEN).build()
+
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("stats", stats))
-    app.add_handler(CallbackQueryHandler(handle_button))
+    app.add_handler(CallbackQueryHandler(button_handler))
+
+    print("✅ Bot is running...")
     app.run_polling()
